@@ -40,10 +40,10 @@ sub call {
 	croak 'no self?' unless $self;
 	croak 'args should be a array or hash reference'
 		unless ref $args eq 'ARRAY' or ref $args eq 'HASH';
-	croak 'callback should be a code reference' if defined $cb and ref $cb ne 'CODE';	
-	$cb = \&dinges unless $cb;
+	croak 'no callback?' unless $cb;
+	croak 'callback should be a code reference' if ref $cb ne 'CODE';
 	my $id = md5_base64($self->{next_id}++ . $name . encode_json($args) . refaddr($cb));
-	croak 'this should not happen' if $self->{calls}->{$id};
+	croak 'duplicate call id' if $self->{calls}->{$id};
 	my $request = encode_json({
 		jsonrpc => '2.0',
 		method => $name,
@@ -53,6 +53,7 @@ sub call {
 	$self->{calls}->{$id} = $cb; # more?
 	#say STDERR "call: $request" if $self->{debug};
 	$self->_write($request);
+	return;
 }
 
 sub notify {
@@ -67,6 +68,7 @@ sub notify {
 	});
 	#say STDERR "notify: $request" if $self->{debug};
 	$self->_write($request);
+	return;
 }
 
 sub handle {
@@ -205,58 +207,61 @@ This coderef will be called for all output: both requests and responses.
 
 $con->call('method', { arg => 'foo' }, $cb);
 
-Calls the remote method indicated if the first argument.
+Calls the remote method indicated in the first argument.
 
 The second argument should either be a arrayref or hashref, depending on
 wether the remote method requires positional of by-name arguments.  Pass a
 empty reference when there are no arguments.
 
-The optional third argument is a callback: when present this callback will
-be called with the results of the method and call will return immediately.
+The third argument is a callback: this callback will
+be called with the results of the called method.
+
+Call throws an error in case of missing arguments, otherwise it returns
+immediately with no return value.
 
 =head2 notify
 
 $con->notify('notify_me', { baz => 'foo' })
 
-Calls the remote method as a notification, i.e. no response will be expected.
-The notify method returns immediately.
+Calls the remote method as a notification, i.e.  no response will be
+expected. Notify throws an error in case of missing arguments, otherwise it
+returns immediately with no return value.
 
 =head2 handle
 
 $con->handle($jsonblob)
 
-Handle the incoming request or response.
+Handle the incoming request or response. Requests (if valid) are passed on
+to the registered callback for that method. Repsonses (if valid) are passed
+on to the callback provided in the call.
 
+Handle returns 0, 1 or 2 values.  If no value is returned there were no
+errors during processing.  If 1 value is returned there was a 'fatal' error,
+and the value is the error message.  If 2 values are returned there was a
+'normal' error, the first value is false, the second value is the error
+message.
 
-$rpc->register('my_method', sub { ... }, { option => ... });
+In case of an error, handle will call the provided write callback with a
+appropriate error response to be sent to the other side. The application
+using the JSON::RPC2::TwoWay::Connection is advised to close the underlying
+connection in case of fatal errors.
 
-Register a new method to be callable. Calls are passed to the callback.
+=head2 close
 
-Valid options are:
+$con->close()
 
-=over 4
+Closes the connection. Recommended to be used to avoid memory leaks due to
+circular references.
 
-=item - by_name
+=head2 owner
 
-When true the arguments to the method will be passed in as a hashref,
-otherwise as a arrayref.  (default true)
+Getter-setter to allow the application to connect the
+JSON::RPC2::TwoWay::Connection to some internal connection concept.
 
-=item - non_blocking
+-head2 state
 
-When true the method callback will receive a callback as its last argument
-for passing back the results (default false)
-
-=item - notification
-
-When true the method is a notification and no return value is expected by
-the caller.  (Any returned values will be discarded in the handler.)
-
-=item - state
-
-When defined must be a string value defining the state the connection (see
-L<newconnection>) must be in for this call to be accepted.
-
-=back
+Getter-setter for the connection state. Evaluated by JSON::RPC2::TwoWay
+when a method was registered with a state option.
 
 =head1 SEE ALSO
 

@@ -54,7 +54,9 @@ sub register {
 	croak 'no self?' unless $self;
 	croak 'no callback?' unless ref $cb eq 'CODE';
 	%opts = (%defaults, %opts);
-	croak "procedure $name already registered" if $self->{methodss}->{$name};
+	croak 'a non_blocking notification is not sensible'
+		if $opts{non_blocking} and $opts{notification};
+	croak "procedure $name already registered" if $self->{methods}->{$name};
 	$self->{methods}->{$name} = { 
 		name => $name,
 		cb => $cb,
@@ -81,7 +83,7 @@ sub _handle_request {
 	return $self->_error($c, $id, ERR_PARAMS, 'This method expects '.($m->{by_name} ? 'named' : 'positional').' params.')
 		if ref $r->{params} ne ($m->{by_name} ? 'HASH' : 'ARRAY');
 	
-	return $self->_error($c, $id, ERR_BADSTATE, 'This method requires connection (owner) state ' . ($m->{state} // 'undef'))
+	return $self->_error($c, $id, ERR_BADSTATE, 'This method requires connection state ' . ($m->{state} // 'undef'))
 		if $m->{state} and not ($c->state and $m->{state} eq $c->state);
 
 	my $cb;
@@ -114,6 +116,7 @@ sub _error {
 
 sub _result {
 	my ($self, $c, $id, $result) = @_;
+	$result = $$result[0] if scalar(@$result) == 1;
 	#say STDERR Dumper($result) if $self->{debug};
 	$c->_write(encode_json({
 		jsonrpc     => '2.0',
@@ -171,8 +174,6 @@ Creates a L<JSON::RPC2::TwoWay::Connection> with owner $owner and writer $write.
 
 See L<JSON::RPC2::TwoWay::Connection> for details.
 
-=back
-
 =head2 register
 
 $rpc->register('my_method', sub { ... }, option => ... );
@@ -204,6 +205,29 @@ When defined must be a string value defining the state the connection (see
 L<newconnection>) must be in for this call to be accepted.
 
 =back
+
+=head1 REGISTERED CALLBACK CALLING CONVENTION
+
+The method callback passed as the second argument of register is called with
+2 or 3 arguments: the first argument is the JSON::RPC2::TwoWay::Connection
+object on which the request came in.  The second argument is a arrayref or
+hashref depending on if the method was registered as by-position or by-name.
+The third argument, if present is a result callback that needs to be called
+with the results of the method:
+
+  sub mymethod {
+     ($c, $i, $cb) = @_;
+     $foo = $i->{foo};
+  }
+
+  some time later;
+
+  $cb->("you sent $foo");
+
+If the method callback returns a scalar value the JSON-RPC 2.0 result member
+value will be a JSON string, number, or null value.  If the method returns a
+hashref the result member value will be an object.  If the method returns
+multiple values or an arrayref the result member value will be an array.
 
 =head1 SEE ALSO
 
