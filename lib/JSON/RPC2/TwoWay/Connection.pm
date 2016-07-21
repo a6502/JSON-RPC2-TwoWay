@@ -4,7 +4,7 @@ use 5.10.0;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.01'; # VERSION
 
 # standard perl
 use Carp;
