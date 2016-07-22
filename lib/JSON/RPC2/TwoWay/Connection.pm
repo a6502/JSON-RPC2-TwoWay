@@ -219,6 +219,16 @@ be called with the results of the called method.
 Call throws an error in case of missing arguments, otherwise it returns
 immediately with no return value.
 
+=head3 the result callback
+
+The result callback is called with 1 or 2 arguments.  The first argument is
+a protocol-error-flag, it contains a error message when there was some kind
+of protocol error like calling a normal method as a notification.
+
+If there are 2 arguments the first one is always false, the second one will
+contain the results from the remote method, see "REGISTERED CALLBACK CALLING
+CONVENTION" in "L<JSON::RPC2::TwoWay>.
+
 =head2 notify
 
 $con->notify('notify_me', { baz => 'foo' })
