@@ -4,7 +4,7 @@ use 5.10.0;
 use strict;
 use warnings;
 
-our $VERSION = '0.01'; # VERSION
+our $VERSION = '0.02'; # VERSION
 
 # standard perl
 use Carp;
@@ -118,7 +118,6 @@ sub _handle_response {
 sub _write {
 	my $self = shift;
 	say STDERR '    writing: ', @_ if $self->{debug};
-	#$self->{stream}->write(@_);
 	$self->{write}->(@_);
 }
 
