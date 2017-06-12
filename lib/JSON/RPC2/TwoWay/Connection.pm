@@ -100,16 +100,17 @@ sub _handle_response {
 	my ($self, $r) = @_;
 	#say STDERR '_handle_response: ', Dumper($r) if $self->{debug};
 	my $id = $r->{id};
-	my $cb = delete $self->{calls}->{$id};
-	return undef, 'unknown call' unless $cb and ref $cb eq 'CODE';
+	my $cb;
+	$cb = delete $self->{calls}->{$id} if $id;
 	if (defined $r->{error}) {
 		my $e = $r->{error};
 		return 'error is not an object' unless ref $e eq 'HASH';
 		return 'error code is not a integer' unless defined $e->{code} and $e->{code} =~ /^-?\d+$/;
         	return 'error message is not a string' if ref $e->{message};
         	return 'extra members in error object' if (keys %$e == 3 and !exists $e->{data}) or (keys %$e > 2);
-        	$cb->($r->{error});
+		$cb->($r->{error}) if $cb and ref $cb eq 'CODE';
 	} else {
+		return undef, 'unknown call' unless $cb and ref $cb eq 'CODE';
 		$cb->(0, $r->{result});
 	}
 	return;

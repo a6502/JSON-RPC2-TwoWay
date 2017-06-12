@@ -110,7 +110,7 @@ sub _error {
 			message     => $message,
 			(defined $data ? ( data => $data ) : ()),
 		},
-	})) if $id; # not for notifications;
+	}));
 	return 0, $err;
 }
 
