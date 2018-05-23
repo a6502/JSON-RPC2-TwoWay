@@ -174,8 +174,8 @@ JSON::RPC2::TwoWay::Connection - Transport-independent bidirectional JSON-RPC 2.
     owner => $owner, 
     write => sub { $stream->write(@_) }
   );
-  $err = $con->serve($stream->read);
-  die $err if $err;
+  @err = $con->handle($stream->read);
+  die $err[-1] if @err;
 
 =head1 DESCRIPTION
 

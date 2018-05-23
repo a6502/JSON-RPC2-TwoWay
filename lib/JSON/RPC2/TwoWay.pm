@@ -169,9 +169,12 @@ JSON::RPC2::TwoWay - Transport-independent bidirectional JSON-RPC 2.0
   $rpc = JSON::RPC2::TwoWay->new();
   $rpc->register('ping', \&handle_ping);
 
-  $con = $rpc->newconnection($owner, $stream);
-  $err = $con->serve($stream->read());
-  die $err if $err;
+  $con = $rpc->newconnection(
+    owner => $owner, 
+    write => sub { $stream->write(@_) }
+  );
+  @err = $con->handle($stream->read);
+  die $err[-1] if @err;
 
 =head1 DESCRIPTION
 
