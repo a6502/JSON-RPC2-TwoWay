@@ -10,7 +10,7 @@ our $VERSION = '0.02'; # VERSION
 use Carp;
 use Data::Dumper;
 use Digest::MD5 qw(md5_base64);
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr weaken);
 
 # cpan
 use JSON::MaybeXS;
@@ -33,6 +33,7 @@ sub new {
 		#stream => $opt->{stream},
 		write => $opt{write},
 	};
+	weaken $self->{owner};
 	return bless $self, $class;
 }
 
@@ -136,7 +137,7 @@ sub write {
 
 sub owner {
 	my $self = shift;
-	$self->{owner} = shift if (@_);
+	weaken ($self->{owner} = shift) if (@_);
 	return $self->{owner};
 }
 
