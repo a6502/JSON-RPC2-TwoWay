@@ -4,7 +4,7 @@ use 5.10.0;
 use strict;
 use warnings;
 
-our $VERSION = '0.04'; # VERSION
+our $VERSION = '0.05'; # VERSION
 
 # standard perl
 use Carp;
@@ -13,7 +13,7 @@ use Digest::MD5 qw(md5_base64);
 use Scalar::Util qw(refaddr weaken);
 
 # cpan
-use JSON::MaybeXS;
+use JSON::MaybeXS qw();
 
 use constant ERR_REQ    => -32600;
 
@@ -29,8 +29,8 @@ sub new {
 		owner => $opt{owner},
 		request => undef,
 		rpc => $opt{rpc},
+		json => $opt{rpc}->{json},
 		state => undef,
-		#stream => $opt->{stream},
 		write => $opt{write},
 	};
 	weaken $self->{owner};
@@ -44,9 +44,9 @@ sub call {
 		unless ref $args eq 'ARRAY' or ref $args eq 'HASH';
 	croak 'no callback?' unless $cb;
 	croak 'callback should be a code reference' if ref $cb ne 'CODE';
-	my $id = md5_base64($self->{next_id}++ . $name . encode_json($args) . refaddr($cb));
+	my $id = md5_base64($self->{next_id}++ . $name . $self->{json}->encode($args) . refaddr($cb));
 	croak 'duplicate call id' if $self->{calls}->{$id};
-	my $request = encode_json({
+	my $request = $self->{json}->encode({
 		jsonrpc => '2.0',
 		method => $name,
 		params => $args,
@@ -64,11 +64,11 @@ sub callraw {
 	croak 'request should be a array or hash reference'
 		unless ref $request eq 'HASH';
 	croak 'callback should be a code reference' if ref $cb ne 'CODE';
-	my $id = md5_base64($self->{next_id}++ . encode_json($request) . refaddr($cb));
+	my $id = md5_base64($self->{next_id}++ . $self->{json}->encode($request) . refaddr($cb));
 	croak 'duplicate call id' if $self->{calls}->{$id};
 	$request->{jsonrpc} = '2.0';
 	$request->{id} = $id;
-	$request = encode_json($request);
+	$request = $self->{json}->encode($request);
 	$self->{calls}->{$id} = [ $cb, 1 ]; # raw
 	#say STDERR "callraw: $request" if $self->{debug};
 	$self->write($request);
@@ -80,7 +80,7 @@ sub notify {
 	croak 'no self?' unless $self;
 	croak 'args should be a array of hash reference'
 		unless ref $args eq 'ARRAY' or ref $args eq 'HASH';
-	my $request = encode_json({
+	my $request = $self->{json}->encode({
 		jsonrpc => '2.0',
 		method => $name,
 		params => $args,
@@ -101,11 +101,10 @@ sub _handle {
 	my ($self, $jsonr) = @_;
 	say STDERR '    handle: ', $$jsonr if $self->{debug};
 	local $@;
-	my $r = eval { decode_json($$jsonr) };
+	my $r = eval { $self->{json}->decode($$jsonr) };
 	return "json decode failed: $@" if $@;
 	return 'not a json object' if ref $r ne 'HASH';
 	return 'expected jsonrpc version 2.0' unless defined $r->{jsonrpc} and $r->{jsonrpc} eq '2.0';
-	#return 'id is not a string or number' if exists $r->{id} and (not defined $r->{id} or ref $r->{id});
 	# id can be null in the error case
 	return 'id is not a string or number' if exists $r->{id} and ref $r->{id};
 	if (defined $r->{method}) {
