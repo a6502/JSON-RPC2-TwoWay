@@ -24,7 +24,8 @@ sub new {
 	croak 'no write?' unless $opt{write} and ref $opt{write} eq 'CODE';
 	my $self = {
 		calls => {},
-		debug => $opt{debug} // 0,
+		debug => $opt{debug} ? 1 : 0,
+		log => ref $opt{debug} eq 'CODE' ? $opt{debug} : sub { say STDERR @_ },
 		next_id => 1,
 		owner => $opt{owner},
 		request => undef,
@@ -53,7 +54,7 @@ sub call {
 		id  => $id,
 	});
 	$self->{calls}->{$id} = [ $cb, 0 ]; # not raw
-	#say STDERR "call: $request" if $self->{debug};
+	#$self->{log}->("call: $request") if $self->{debug};
 	$self->write($request);
 	return;
 }
@@ -70,7 +71,7 @@ sub callraw {
 	$request->{id} = $id;
 	$request = $self->{json}->encode($request);
 	$self->{calls}->{$id} = [ $cb, 1 ]; # raw
-	#say STDERR "callraw: $request" if $self->{debug};
+	#$self->{log}->("callraw: $request") if $self->{debug};
 	$self->write($request);
 	return;
 }
@@ -85,7 +86,7 @@ sub notify {
 		method => $name,
 		params => $args,
 	});
-	#say STDERR "notify: $request" if $self->{debug};
+	#$self->{log}->("notify: $request") if $self->{debug};
 	$self->write($request);
 	return;
 }
@@ -99,7 +100,7 @@ sub handle {
 
 sub _handle {
 	my ($self, $jsonr) = @_;
-	say STDERR '    handle: ', $$jsonr if $self->{debug};
+	$self->{log}->('    handle: ' . $$jsonr) if $self->{debug};
 	local $@;
 	my $r = eval { $self->{json}->decode($$jsonr) };
 	return "json decode failed: $@" if $@;
@@ -118,7 +119,7 @@ sub _handle {
 
 sub _handle_response {
 	my ($self, $r) = @_;
-	#say STDERR '_handle_response: ', Dumper($r) if $self->{debug};
+	#$self->{log}->('_handle_response: ' . Dumper($r)) if $self->{debug};
 	my $id = $r->{id};
 	my ($cb, $raw);
 	$cb = delete $self->{calls}->{$id} if $id;
@@ -147,7 +148,7 @@ sub _handle_response {
 
 sub write {
 	my $self = shift;
-	say STDERR '    writing: ', @_ if $self->{debug};
+	$self->{log}->('    writing: ' . join '', @_) if $self->{debug};
 	$self->{write}->(@_);
 }
 
@@ -171,7 +172,7 @@ sub close {
 
 #sub DESTROY {
 #	my $self = shift;
-#	say STDERR 'destroying ', $self;
+#	$self->{log}->('destroying ' . $self) if $self->{debug};
 #}
 
 1;
@@ -212,7 +213,8 @@ Valid arguments are:
 
 =over 4
 
-=item - debug: print debugging to STDERR
+=item - debug: print debugging to STDERR, or if coderef is given call that with 
+the debugging line.
 
 (default false)
 
