@@ -338,6 +338,16 @@ L<http://www.jsonrpc.org/specification>: JSON-RPC 2.0 Specification
 This software has been developed with support from L<STRATO|https://www.strato.com/>.
 In German: Diese Software wurde mit Unterstützung von L<STRATO|https://www.strato.de/> entwickelt.
 
+=head1 THANKS
+
+=over 4
+
+=item *
+
+'greencoloured' for multiple PRs
+
+=back
+
 =head1 AUTHORS
 
 =over 4
@@ -350,7 +360,7 @@ Wieger Opmeer <wiegerop@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2016-2019 by Wieger Opmeer.
+This software is copyright (c) 2016-2022 by Wieger Opmeer.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
